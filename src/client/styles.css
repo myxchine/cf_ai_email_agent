@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #000000;
+  --site-width: 75rem;
+  --header-width: 75rem;
+  --rounded-radius: 0.3rem;
+  --accent: #000000;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  text-wrap: balance;
+}
+
+p {
+  @apply font-mono;
+}
+
+h1 {
+  @apply text-4xl md:text-6xl tracking-tight font-sans;
+}
+
+h2 {
+  @apply text-2xl md:text-4xl tracking-tight font-sans;
+}
+
+h3 {
+  @apply text-xl md:text-3xl tracking-tight font-sans;
+}
+
+.btn-primary {
+  @apply px-6 py-2 rounded-full font-mono md:text-lg transition-colors  text-white  uppercase  bg-gradient-to-br from-accent/80 to-accent hover:bg-black/80 border border-black/30;
+}
+
+.btn-round {
+  @apply px-6 py-2 rounded-full font-mono md:text-lg  transition-colors  text-white  uppercase  bg-gradient-to-br from-accent/80 to-accent  border border-black/30 hover:bg-gradient-to-br hover:from-black/80 hover:to-black/80;
+}
+
+.btn-round-small {
+  @apply px-2 md:px-3 md:py-2 py-1 text-xs md:text-sm rounded-full  transition-colors  text-white    bg-gradient-to-br from-accent/80 to-accent hover:bg-black/80 border border-black/30;
+}
+
+.btn-round-secondary {
+  @apply px-6 py-2 rounded-full font-mono md:text-lg  bg-white transition-colors  text-black  uppercase  bg-gradient-to-br from-accent/5 to-transparent hover:bg-black/10 border border-black/30;
+}
+
+.btn-small {
+  @apply px-2 py-1 h-fit w-fit rounded-[var(--rounded-radius)]  text-xs md:text-sm transition-colors bg-gradient-to-br from-accent/80 to-accent text-white hover:bg-black/80;
+}
+
+.btn-header-primary {
+  @apply px-4 py-1 rounded-full font-mono text-sm md:text-base  transition-colors  text-white  uppercase  bg-gradient-to-br from-accent/80 to-accent hover:bg-black/80 border border-black/30;
+}
+
+.btn-header-secondary {
+  @apply px-4 py-1 rounded-full font-mono text-sm md:text-base  transition-colors  text-white  uppercase  bg-gradient-to-br from-accent/80 to-accent hover:bg-black/80 border border-black/30;
+}
+
+.btn-header-light {
+  @apply rounded-[var(--rounded-radius)] text-sm md:text-base px-2 md:px-3 py-1  items-center justify-center  bg-gradient-to-br from-accent/10 to-accent/5 text-black hover:opacity-80;
+}
+
+button {
+  @apply hover:cursor-pointer;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Additional minimal light UI helpers */
+.btn-ghost {
+  @apply rounded-full px-4 py-2 text-sm md:text-base border border-black/20 text-black/90 hover:bg-black/10 transition-colors;
+}
+
+.card {
+  @apply rounded-[var(--rounded-radius)] border border-black/10 bg-black/5 hover:bg-black/10 transition-colors;
+}
+
+.chip {
+  @apply inline-flex items-center gap-2 rounded-full border border-black/15 bg-black/5 px-3 py-1 text-xs uppercase tracking-wide text-black/80;
+}
