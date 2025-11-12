@@ -59,7 +59,6 @@ export function AgentInterface({ agentName }: { agentName: string }) {
     agent
   });
 
-  console.log("messages", messages);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -114,13 +113,16 @@ export function AgentInterface({ agentName }: { agentName: string }) {
     !hasTextPartsInLastMessage;
 
   return (
-    <div className="h-full w-full flex flex-col relative">
+    <div className="h-full w-full flex flex-col relative min-h-0">
       <div className="p-0 md:p-0 flex items-center justify-between bg-linear-to-b from-white via-white to-transparent absolute top-0 left-0 right-0">
         <ConnectionStatusBadge status={connectionStatus} />
         <button
           type="button"
           onClick={() => clearHistory()}
-          className="text-sm border border-black/10 hover:cursor-pointer rounded-full px-2 py-1 text-black/60 hover:text-black transition-colors"
+          disabled={
+            status === "streaming" || status === "submitted" || !isConnected
+          }
+          className="text-sm border border-black/10 hover:cursor-pointer rounded-full px-2 py-1 text-black/60 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Clear History
         </button>
@@ -132,168 +134,170 @@ export function AgentInterface({ agentName }: { agentName: string }) {
       ) : messages.length === 0 ? (
         <EmptyChatState />
       ) : (
-        <div className="flex-1 overflow-y-auto px-4 pt-24 pb-48 gap-4 flex flex-col">
-          {messages.map((m) => {
-            const isUser = m.role === "user";
-            return (
-              <div
-                key={m.id}
-                className={`flex gap-3 ${
-                  isUser ? "flex-row-reverse" : "flex-row"
-                }`}
-              >
+        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+          <div className="px-4 pt-24 pb-48 gap-4 flex flex-col w-full overflow-y-auto flex-1">
+            {messages.map((m) => {
+              const isUser = m.role === "user";
+              return (
                 <div
-                  className={`flex-1 ${
-                    isUser ? "text-right pl-2" : "text-left pr-8"
-                  } w-full`}
+                  key={m.id}
+                  className={`flex gap-3 ${
+                    isUser ? "flex-row-reverse" : "flex-row"
+                  }`}
                 >
-                  {m.parts?.map((part) => {
-                    if (part.type === "text") {
-                      return (
-                        <div
-                          key={part.text}
-                          className={`inline-block p-4 rounded-3xl  ${
-                            isUser
-                              ? "rounded-br-none border border-transparent bg-black/5"
-                              : "rounded-bl-none bg-black/5 border border-transparent"
-                          }`}
-                        >
-                          <Streamdown isAnimating={status === "streaming"}>
-                            {part.text}
-                          </Streamdown>
-                        </div>
-                      );
-                    }
+                  <div
+                    className={`flex-1 ${
+                      isUser ? "text-right pl-2" : "text-left pr-8"
+                    } w-full`}
+                  >
+                    {m.parts?.map((part) => {
+                      if (part.type === "text") {
+                        return (
+                          <div
+                            key={part.text}
+                            className={`inline-block p-4 rounded-3xl  ${
+                              isUser
+                                ? "rounded-br-none border border-transparent bg-black/5"
+                                : "rounded-bl-none bg-black/5 border border-transparent"
+                            }`}
+                          >
+                            <Streamdown isAnimating={status === "streaming"}>
+                              {part.text}
+                            </Streamdown>
+                          </div>
+                        );
+                      }
 
-                    // Handle tool call parts (only show for assistant messages)
-                    if (part.type?.startsWith("tool-") && !isUser) {
-                      const toolNameRaw = part.type.replace("tool-", "");
-                      // Convert camelCase to Title Case for better readability
-                      const toolName = toolNameRaw
-                        .replace(/([A-Z])/g, " $1")
-                        .replace(/^./, (str) => str.toUpperCase())
-                        .trim();
-                      const toolInputRaw = (
-                        part as { input?: Record<string, unknown> | unknown }
-                      ).input;
-                      const toolInput =
-                        toolInputRaw &&
-                        typeof toolInputRaw === "object" &&
-                        !Array.isArray(toolInputRaw)
-                          ? (toolInputRaw as Record<string, unknown>)
-                          : undefined;
+                      // Handle tool call parts (only show for assistant messages)
+                      if (part.type?.startsWith("tool-") && !isUser) {
+                        const toolNameRaw = part.type.replace("tool-", "");
+                        // Convert camelCase to Title Case for better readability
+                        const toolName = toolNameRaw
+                          .replace(/([A-Z])/g, " $1")
+                          .replace(/^./, (str) => str.toUpperCase())
+                          .trim();
+                        const toolInputRaw = (
+                          part as { input?: Record<string, unknown> | unknown }
+                        ).input;
+                        const toolInput =
+                          toolInputRaw &&
+                          typeof toolInputRaw === "object" &&
+                          !Array.isArray(toolInputRaw)
+                            ? (toolInputRaw as Record<string, unknown>)
+                            : undefined;
 
-                      // Determine tool call status:
-                      // - Generating: when tool call exists but input is incomplete/empty
-                      // - Executing: when tool call has input and is streaming
-                      // - Completed: when streaming is done
-                      const isGenerating = isToolCallGenerating(part);
-                      const isExecuting =
-                        !isGenerating && status === "streaming";
-                      const isCompleted = status !== "streaming";
+                        // Determine tool call status:
+                        // - Generating: when tool call exists but input is incomplete/empty
+                        // - Executing: when tool call has input and is streaming
+                        // - Completed: when streaming is done
+                        const isGenerating = isToolCallGenerating(part);
+                        const isExecuting =
+                          !isGenerating && status === "streaming";
+                        const isCompleted = status !== "streaming";
 
-                      return (
-                        <div
-                          key={part.type}
-                          className="inline-block p-4 rounded-2xl bg-blue-50 border border-blue-200 mb-2 max-w-full w-full"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="shrink-0 mt-0.5">
-                              {(isGenerating || isExecuting) && (
-                                <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
-                              )}
-                              {isCompleted && (
-                                <CheckCircle2 className="w-5 h-5 text-green-600" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Wrench className="w-4 h-4 text-blue-600 shrink-0" />
-                                <span className="font-semibold text-sm text-blue-900">
-                                  {toolName}
-                                </span>
+                        return (
+                          <div
+                            key={part.type}
+                            className="inline-block p-4 rounded-2xl bg-blue-50 border border-blue-200 mb-2 max-w-full w-full"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="shrink-0 mt-0.5">
                                 {(isGenerating || isExecuting) && (
-                                  <span className="text-xs text-blue-600 animate-pulse">
-                                    {isGenerating
-                                      ? "Generating..."
-                                      : "Executing..."}
-                                  </span>
+                                  <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
                                 )}
                                 {isCompleted && (
-                                  <span className="text-xs text-green-600">
-                                    Completed
-                                  </span>
+                                  <CheckCircle2 className="w-5 h-5 text-green-600" />
                                 )}
                               </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Wrench className="w-4 h-4 text-blue-600 shrink-0" />
+                                  <span className="font-semibold text-sm text-blue-900">
+                                    {toolName}
+                                  </span>
+                                  {(isGenerating || isExecuting) && (
+                                    <span className="text-xs text-blue-600 animate-pulse">
+                                      {isGenerating
+                                        ? "Generating..."
+                                        : "Executing..."}
+                                    </span>
+                                  )}
+                                  {isCompleted && (
+                                    <span className="text-xs text-green-600">
+                                      Completed
+                                    </span>
+                                  )}
+                                </div>
 
-                              {toolInput &&
-                                Object.keys(toolInput).length > 0 && (
-                                  <div className="mb-2">
-                                    <div className="bg-white/60 rounded-lg p-2 text-xs font-mono text-blue-800 overflow-x-auto">
-                                      <pre className="whitespace-pre-wrap wrap-break-word">
-                                        {Object.entries(toolInput).map(
-                                          ([key, value]) => {
-                                            if (key === "html") {
-                                              return "Upadting email";
+                                {toolInput &&
+                                  Object.keys(toolInput).length > 0 && (
+                                    <div className="mb-2">
+                                      <div className="bg-white/60 rounded-lg p-2 text-xs font-mono text-blue-800 overflow-x-auto">
+                                        <pre className="whitespace-pre-wrap wrap-break-word">
+                                          {Object.entries(toolInput).map(
+                                            ([key, value]) => {
+                                              if (key === "html") {
+                                                return "Upadting email";
+                                              }
+                                              if (key === "htmlContent") {
+                                                return null;
+                                              }
+                                              return (
+                                                <div
+                                                  key={key}
+                                                  className="flex items-center gap-2"
+                                                >
+                                                  <span className="font-semibold">
+                                                    {key}:
+                                                  </span>
+                                                  <span>{String(value)}</span>
+                                                </div>
+                                              );
                                             }
-                                            if (key === "htmlContent") {
-                                              return null;
-                                            }
-                                            return (
-                                              <div
-                                                key={key}
-                                                className="flex items-center gap-2"
-                                              >
-                                                <span className="font-semibold">
-                                                  {key}:
-                                                </span>
-                                                <span>{String(value)}</span>
-                                              </div>
-                                            );
-                                          }
-                                        )}
-                                      </pre>
+                                          )}
+                                        </pre>
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
+                                  )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    }
+                        );
+                      }
 
-                    return null;
-                  })}
+                      return null;
+                    })}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-          <div ref={messagesEndRef} />
-          {/* Show placeholder when generating tool call but it hasn't appeared yet */}
-          {isGeneratingToolCall && (
-            <div className="flex gap-3 flex-row">
-              <div className="flex-1 text-left pr-8 w-full">
-                <div className="inline-block p-4 rounded-2xl bg-blue-50 border border-blue-200 mb-2 max-w-full w-full">
-                  <div className="flex items-start gap-3">
-                    <div className="shrink-0 mt-0.5">
-                      <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Wrench className="w-4 h-4 text-blue-600 shrink-0" />
-                        <span className="font-semibold text-sm text-blue-900">
-                          Preparing tool call...
-                        </span>
-                        <span className="text-xs text-blue-600 animate-pulse">
-                          Generating...
-                        </span>
+              );
+            })}
+            <div ref={messagesEndRef} />
+            {/* Show placeholder when generating tool call but it hasn't appeared yet */}
+            {isGeneratingToolCall && (
+              <div className="flex gap-3 flex-row">
+                <div className="flex-1 text-left pr-8 w-full">
+                  <div className="inline-block p-4 rounded-2xl bg-blue-50 border border-blue-200 mb-2 max-w-full w-full">
+                    <div className="flex items-start gap-3">
+                      <div className="shrink-0 mt-0.5">
+                        <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Wrench className="w-4 h-4 text-blue-600 shrink-0" />
+                          <span className="font-semibold text-sm text-blue-900">
+                            Preparing tool call...
+                          </span>
+                          <span className="text-xs text-blue-600 animate-pulse">
+                            Generating...
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
 

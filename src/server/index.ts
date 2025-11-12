@@ -1,6 +1,7 @@
 import { routeAgentRequest } from "agents";
 import { Agent } from "./agents/AIEmailAgent";
 import { auth } from "./auth";
+import { getSession } from "./auth/server";
 export { Agent };
 
 export default {
@@ -14,8 +15,17 @@ async function routeApiRequest(request: Request, env: Env): Promise<Response> {
   if (url.pathname.startsWith("/api/auth")) {
     return auth().handler(request);
   }
-  return (
-    (await routeAgentRequest(request, env)) ||
-    new Response("Not found", { status: 404 })
-  );
+
+  if (url.pathname.startsWith("/agents")) {
+    const session = await getSession(request);
+    if (!session) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+    return (
+      (await routeAgentRequest(request, env)) ||
+      new Response("Not found", { status: 404 })
+    );
+  }
+
+  return new Response("Not found", { status: 404 });
 }
