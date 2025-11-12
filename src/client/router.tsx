@@ -4,7 +4,6 @@ import EmailPreviewPage from "./email";
 import Home from "./home";
 import SignIn from "./signin";
 
-// Define routes - all client-side only
 export const routes: RouteObject[] = [
   {
     path: "/",
@@ -24,5 +23,4 @@ export const routes: RouteObject[] = [
   }
 ];
 
-// Create browser router for client-side
 export const router = createBrowserRouter(routes);

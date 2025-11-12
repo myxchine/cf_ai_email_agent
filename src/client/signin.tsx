@@ -1,5 +1,5 @@
 import { Navigate, useSearchParams } from "react-router";
-import SignInButton from "./SignInButton";
+import SignInButton from "./components/auth/SignInButton";
 import { useSession } from "@/server/auth/client";
 import { Loader2 } from "lucide-react";
 

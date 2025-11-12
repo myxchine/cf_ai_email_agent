@@ -2,12 +2,11 @@ import { MessageSquare, Sparkles, ArrowUp } from "lucide-react";
 
 export function EmptyChatState() {
   return (
-    <div className="flex-1 overflow-y-auto px-4 pb-48 gap-6 flex flex-col items-center justify-center">
+    <div className="flex-1 overflow-y-auto px-4 pt-12 pb-48 gap-6 flex flex-col items-center justify-center">
       <div className="flex flex-col items-center gap-6 max-w-md text-center">
         <div className="relative">
-          <div className="absolute inset-0 bg-black/5 rounded-full blur-xl"></div>
           <div className="relative bg-black/5 border border-black/10 rounded-full p-6">
-            <MessageSquare className="w-12 h-12 text-black/40" />
+            <MessageSquare className="size-8 md:size-12 text-black/40" />
           </div>
         </div>
         <div className="flex flex-col gap-3">
