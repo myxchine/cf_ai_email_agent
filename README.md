@@ -26,14 +26,14 @@ This project is built entirely on **Cloudflare's edge computing platform**, show
 - **TypeScript** - Full type safety across the codebase
 - **Vite** - Fast build tool and dev server
 - **Tailwind CSS 4** - Utility-first CSS framework for styling (all components are custom-built with Tailwind)
-- **Custom Components** - Self-rolled UI components including buttons, navigation, modals, and chat interface
-- **Lucide React** - Modern icon library
+- **Custom Components** - Self-rolled UI and UI components including buttons, navigation, modals, and chat interface
 - **React Markdown** - Markdown rendering for AI responses
+- **Streamdown** - Markdown to HTML conversion for streaming AI responses for an engaging user experience
 
 ### Backend & AI Technologies
 
 - **Vercel AI SDK** - Streaming AI responses with `streamText` and tool calling capabilities
-- **Groq AI** - Using Groq's Moonshot AI model (`moonshotai/kimi-k2-instruct-0905`) for fast inference
+- **Groq AI** - Using Groq's Moonshot AI model (`moonshotai/kimi-k2-instruct-0905`) for fast inference, also good at tool calling and design tasks
 - **AI SDK React** - React hooks for AI chat interfaces (`useAgentChat`, `useAgent`)
 - **Zod** - Schema validation for tool inputs and type safety
 - **Drizzle ORM** - Type-safe SQL query builder with D1 dialect
@@ -140,6 +140,8 @@ For production, make sure to:
 
 ## TODO
 
+- Improve AI chat state when generating tool calls
 - Rate limiting for AI use to avoid abuse
 - Decide if human in the loop is needed for sending emails or if the current implementation where the AI Agent decides if the email and details are appropriate and then sends the email is fine
 - Investigate and fix Safari mobile WebSocket connection issue
+- Bugs with tool calling occuring every now and then, need thorough quality assurance testing for a polished product
