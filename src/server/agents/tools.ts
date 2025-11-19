@@ -3,7 +3,7 @@ import { z } from "zod/v3";
 import { getCurrentAgent } from "agents";
 import { sendEmail as sendEmailFunction } from "@/server/email";
 import type { Agent } from "./AIEmailAgent";
-import { templateEmailHtml } from "@/server/agents/AIEmailAgent";
+import { templateEmailHtml } from "@/server/agents/utils";
 
 const editEmailHtml = tool({
   description:
@@ -65,9 +65,15 @@ const sendEmail = tool({
 
 const resetEmail = tool({
   description:
-    "the tool to reset the current email back to the default template if user asks to start over and make a new email and so on.",
-  inputSchema: z.void(),
-  execute: async () => {
+    "the tool to reset the current email back to the default template if user asks to start over and make a new email and so on. you should put a positive in the boolean field to confirm reset for extra measure.",
+  inputSchema: z.object({
+    reset: z.boolean()
+  }),
+  execute: async ({ reset }) => {
+    if (!reset) {
+      return "Email not reset";
+    }
+
     const { agent } = getCurrentAgent<Agent>();
 
     function throwError(msg: string): string {

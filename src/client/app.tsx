@@ -2,6 +2,7 @@ import { useSession } from "@/server/auth/client";
 import { Navigate } from "react-router";
 import { AuthenticatingSkeleton } from "@/client/components/auth/authenticatingSkeleton";
 import AuthHeader from "./components/auth/header";
+import { Toaster } from "sonner";
 
 export default function Home() {
   const { data, isPending } = useSession();
@@ -13,12 +14,15 @@ export default function Home() {
     return <Navigate to="/signin" />;
   }
   return (
-    <div className="flex flex-col h-svh max-h-svh fixed top-0 left-0 right-0 bottom-0 overflow-hidden">
-      <AuthHeader name={data.user.name} />
-      <div className="flex flex-col md:flex-row gap-2 md:gap-8 flex-1 min-h-0 p-3 md:p-4">
-        <MobileViewToggle agentName={data.user.id} />
+    <>
+      <Toaster position="top-center" richColors />
+      <div className="flex flex-col h-svh max-h-svh fixed top-0 left-0 right-0 bottom-0 overflow-hidden">
+        <AuthHeader name={data.user.name} />
+        <div className="flex flex-col md:flex-row gap-2 md:gap-8 flex-1 min-h-0 p-3 md:p-4">
+          <MobileViewToggle agentName={data.user.id} />
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

@@ -140,8 +140,8 @@ For production, make sure to:
 
 ## TODO
 
-- Improve AI chat state when generating tool calls
+- Improve AI chat state when generating tool calls (done, but need to test more)
 - Rate limiting for AI use to avoid abuse
 - Decide if human in the loop is needed for sending emails or if the current implementation where the AI Agent decides if the email and details are appropriate and then sends the email is fine
-- Investigate and fix Safari mobile WebSocket connection issue
-- Bugs with tool calling occuring every now and then, need thorough quality assurance testing for a polished product
+- Investigate and fix Safari mobile WebSocket connection issue (solved, was due to apply relay causing websocket issues)
+- Bugs with tool calling occuring every now and then, need thorough quality assurance testing for a polished product (solved I think, need to test more)

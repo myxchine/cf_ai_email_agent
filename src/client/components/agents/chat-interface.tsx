@@ -6,6 +6,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { ArrowUp, Square, Loader2, Wrench, CheckCircle2 } from "lucide-react";
 import { Streamdown } from "streamdown";
 import { EmptyChatState } from "@/client/components/agents/empty-chat-state";
+import { toast } from "sonner";
 
 function MessagesLoadingSkeleton() {
   return (
@@ -27,6 +28,61 @@ export function AgentInterface({ agentName }: { agentName: string }) {
   const connectionStatus = useAgentConnectionStatus(agent);
   const isConnected = connectionStatus === "connected";
 
+  const [uiError, setUiError] = useState<Error | null>(null);
+
+  const { messages, clearHistory: originalClearHistory, status, sendMessage, stop } = useAgentChat({
+    agent,
+    onError: (error) => {
+      console.error("Agent Chat Error:", error);
+      setUiError(error);
+
+      const errorMessage = error.message || "Unknown error";
+      const errorType = (error as any).type;
+
+      // Check for rate limit errors
+      if (
+        errorMessage.includes("Rate limit") ||
+        errorMessage.includes("rate_limit") ||
+        errorMessage.includes("429") ||
+        errorMessage.includes("TPM") ||
+        errorMessage.includes("tokens per minute") ||
+        errorType === "rate_limit"
+      ) {
+        toast.error("Rate limit reached", {
+          description:
+            "The AI is receiving too many requests right now. Please try again in a few seconds."
+        });
+      }
+      // Check for request too large errors
+      else if (
+        errorMessage.includes("Request too large") ||
+        errorMessage.includes("reduce your message size") ||
+        errorMessage.includes("413") ||
+        (error as any).statusCode === 413 ||
+        errorType === "tokens" || // User specified type
+        errorType === "context_length_exceeded"
+      ) {
+        toast.error("Chat history too long", {
+          description:
+            "The conversation has become too long. Please clear the chat history and try again.",
+          action: {
+            label: "Clear Chat",
+            onClick: () => clearHistory()
+          }
+        });
+      } else {
+        toast.error("Error", {
+          description: errorMessage
+        });
+      }
+    }
+  });
+
+  const clearHistory = useCallback(() => {
+    originalClearHistory();
+    setUiError(null);
+  }, [originalClearHistory]);
+
   const [agentInput, setAgentInput] = useState("");
   const handleAgentInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -43,6 +99,7 @@ export function AgentInterface({ agentName }: { agentName: string }) {
 
     const message = agentInput;
     setAgentInput("");
+    setUiError(null); // Clear error on new submission
 
     await sendMessage(
       {
@@ -54,10 +111,6 @@ export function AgentInterface({ agentName }: { agentName: string }) {
       }
     );
   };
-
-  const { messages, clearHistory, status, sendMessage, stop } = useAgentChat({
-    agent
-  });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollToBottom = useCallback(() => {
@@ -78,39 +131,10 @@ export function AgentInterface({ agentName }: { agentName: string }) {
     }
   }, [status, scrollToBottom]);
 
-  // Helper to check if a tool call is being generated (incomplete)
-  const isToolCallGenerating = (part: {
-    type?: string;
-    input?: Record<string, unknown> | unknown;
-  }) => {
-    if (!part.type?.startsWith("tool-")) return false;
-    // If input is missing or empty, tool call is still being generated
-    const toolInput = part.input;
-    if (!toolInput) return true;
-    if (typeof toolInput === "object" && !Array.isArray(toolInput)) {
-      return Object.keys(toolInput as Record<string, unknown>).length === 0;
-    }
-    return false;
-  };
-
   // Helper to get the last assistant message
   const lastAssistantMessage = messages
     .filter((m) => m.role === "assistant")
     .pop();
-  const hasToolCallsInLastMessage =
-    lastAssistantMessage?.parts?.some((part) =>
-      part.type?.startsWith("tool-")
-    ) ?? false;
-  // Check if last message has any text parts (even if empty, means text is streaming)
-  const hasTextPartsInLastMessage =
-    lastAssistantMessage?.parts?.some((part) => part.type === "text") ?? false;
-  // Only show placeholder if streaming, no tool calls yet, and no text parts
-  // (suggesting a tool call might be coming, not regular text)
-  const isGeneratingToolCall =
-    status === "streaming" &&
-    lastAssistantMessage &&
-    !hasToolCallsInLastMessage &&
-    !hasTextPartsInLastMessage;
 
   return (
     <div className="h-full w-full flex flex-col relative min-h-0">
@@ -135,33 +159,39 @@ export function AgentInterface({ agentName }: { agentName: string }) {
         <EmptyChatState />
       ) : (
         <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-          <div className="px-4 pt-24 pb-48 gap-4 flex flex-col w-full overflow-y-auto flex-1">
-            {messages.map((m) => {
+          <div className="md:px-4 pt-24 pb-48 gap-4 flex flex-col w-full overflow-y-auto flex-1">
+            {messages.map((m, index) => {
               const isUser = m.role === "user";
+              const isLastMessage = index === messages.length - 1;
+              const isStreamingThisMessage =
+                status === "streaming" && isLastMessage;
+
               return (
                 <div
                   key={m.id}
-                  className={`flex gap-3 ${
-                    isUser ? "flex-row-reverse" : "flex-row"
-                  }`}
+                  className={`flex gap-3 ${isUser ? "flex-row-reverse" : "flex-row"
+                    }`}
                 >
                   <div
-                    className={`flex-1 ${
-                      isUser ? "text-right pl-2" : "text-left pr-8"
-                    } w-full`}
+                    className={`flex-1 ${isUser ? "text-right pl-2" : "text-left pr-8"
+                      } w-full flex flex-col gap-4`}
                   >
-                    {m.parts?.map((part) => {
+                    {m.parts?.map((part, partIndex) => {
+                      const isLastPart =
+                        partIndex === (m.parts?.length ?? 0) - 1;
+
                       if (part.type === "text") {
                         return (
                           <div
-                            key={part.text}
-                            className={`inline-block p-4 rounded-3xl  ${
-                              isUser
-                                ? "rounded-br-none border border-transparent bg-black/5"
-                                : "rounded-bl-none bg-black/5 border border-transparent"
-                            }`}
+                            key={`${m.id}-${partIndex}`}
+                            className={`inline-block p-4 w-fit rounded-3xl  ${isUser
+                              ? "rounded-br-none ml-auto border border-transparent bg-black/5"
+                              : "rounded-bl-none mr-auto bg-black/5 border border-transparent"
+                              }`}
                           >
-                            <Streamdown isAnimating={status === "streaming"}>
+                            <Streamdown
+                              isAnimating={isStreamingThisMessage && isLastPart}
+                            >
                               {part.text}
                             </Streamdown>
                           </div>
@@ -169,36 +199,78 @@ export function AgentInterface({ agentName }: { agentName: string }) {
                       }
 
                       // Handle tool call parts (only show for assistant messages)
-                      if (part.type?.startsWith("tool-") && !isUser) {
-                        const toolNameRaw = part.type.replace("tool-", "");
-                        // Convert camelCase to Title Case for better readability
-                        const toolName = toolNameRaw
-                          .replace(/([A-Z])/g, " $1")
-                          .replace(/^./, (str) => str.toUpperCase())
-                          .trim();
-                        const toolInputRaw = (
-                          part as { input?: Record<string, unknown> | unknown }
-                        ).input;
-                        const toolInput =
-                          toolInputRaw &&
-                          typeof toolInputRaw === "object" &&
-                          !Array.isArray(toolInputRaw)
-                            ? (toolInputRaw as Record<string, unknown>)
-                            : undefined;
+                      // Check for various tool part types including standard AI SDK types
+                      const isToolPart =
+                        !isUser &&
+                        (part.type?.startsWith("tool-") ||
+                          part.type === "tool-invocation" ||
+                          part.type === "dynamic-tool");
+
+                      if (isToolPart) {
+                        let toolName = "Unknown Tool";
+                        let toolInput: Record<string, unknown> | undefined;
+
+                        // Handle 'tool-invocation' type (standard AI SDK)
+                        if (
+                          part.type === "tool-invocation" &&
+                          "toolInvocation" in part
+                        ) {
+                          const invocation = (part as any).toolInvocation;
+                          toolName = invocation?.toolName || toolName;
+                          toolInput = invocation?.args;
+                        }
+                        // Handle 'dynamic-tool' type
+                        else if (part.type === "dynamic-tool") {
+                          toolName = (part as any).toolName || toolName;
+                          toolInput = (part as any).args;
+                        }
+                        // Handle legacy/custom 'tool-NAME' type
+                        else if (part.type?.startsWith("tool-")) {
+                          const toolNameRaw = part.type.replace("tool-", "");
+                          toolName = toolNameRaw
+                            .replace(/([A-Z])/g, " $1")
+                            .replace(/^./, (str) => str.toUpperCase())
+                            .trim();
+
+                          const toolInputRaw = (
+                            part as {
+                              input?: Record<string, unknown> | unknown;
+                            }
+                          ).input;
+
+                          toolInput =
+                            toolInputRaw &&
+                              typeof toolInputRaw === "object" &&
+                              !Array.isArray(toolInputRaw)
+                              ? (toolInputRaw as Record<string, unknown>)
+                              : undefined;
+                        }
 
                         // Determine tool call status:
                         // - Generating: when tool call exists but input is incomplete/empty
                         // - Executing: when tool call has input and is streaming
-                        // - Completed: when streaming is done
-                        const isGenerating = isToolCallGenerating(part);
+                        // - Completed: when streaming is done OR it's not the last part of the message
+
+                        // Check if input is "complete" enough to be considered executing
+                        // This is a heuristic: if we have keys, we assume it's at least partially generated
+                        const hasInput =
+                          toolInput && Object.keys(toolInput).length > 0;
+
+                        const isGenerating =
+                          isStreamingThisMessage && isLastPart && !hasInput;
                         const isExecuting =
-                          !isGenerating && status === "streaming";
-                        const isCompleted = status !== "streaming";
+                          isStreamingThisMessage && isLastPart && hasInput;
+
+                        // It is completed if:
+                        // 1. We are not streaming this message anymore
+                        // 2. OR we are streaming this message, but this is NOT the last part (meaning we moved on to next part)
+                        const isCompleted =
+                          !isStreamingThisMessage || !isLastPart;
 
                         return (
                           <div
-                            key={part.type}
-                            className="inline-block p-4 rounded-2xl bg-blue-50 border border-blue-200 mb-2 max-w-full w-full"
+                            key={`${m.id}-${partIndex}`}
+                            className="inline-block p-4 rounded-2xl bg-blue-50 border border-blue-200 max-w-full w-full"
                           >
                             <div className="flex items-start gap-3">
                               <div className="shrink-0 mt-0.5">
@@ -272,31 +344,35 @@ export function AgentInterface({ agentName }: { agentName: string }) {
               );
             })}
             <div ref={messagesEndRef} />
-            {/* Show placeholder when generating tool call but it hasn't appeared yet */}
-            {isGeneratingToolCall && (
-              <div className="flex gap-3 flex-row">
-                <div className="flex-1 text-left pr-8 w-full">
-                  <div className="inline-block p-4 rounded-2xl bg-blue-50 border border-blue-200 mb-2 max-w-full w-full">
-                    <div className="flex items-start gap-3">
-                      <div className="shrink-0 mt-0.5">
-                        <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Wrench className="w-4 h-4 text-blue-600 shrink-0" />
-                          <span className="font-semibold text-sm text-blue-900">
-                            Preparing tool call...
-                          </span>
-                          <span className="text-xs text-blue-600 animate-pulse">
-                            Generating...
-                          </span>
+
+            {/* Thinking State: Show when streaming/submitted but no parts yet in the last assistant message */}
+            {(status === "streaming" || status === "submitted") &&
+              (!lastAssistantMessage ||
+                !lastAssistantMessage.parts ||
+                lastAssistantMessage.parts.length === 0 ||
+                (lastAssistantMessage.parts.length > 0 &&
+                  lastAssistantMessage.parts[
+                    lastAssistantMessage.parts.length - 1
+                  ].type === "text")) && (
+                <div className="flex gap-3 flex-row">
+                  <div className="flex-1 text-left pr-8 w-full">
+                    <div className="inline-block p-4 rounded-2xl bg-gray-50 border border-gray-200 max-w-full w-full">
+                      <div className="flex items-start gap-3">
+                        <div className="shrink-0 mt-0.5">
+                          <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm text-gray-600 animate-pulse">
+                              Thinking...
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
         </div>
       )}
@@ -308,6 +384,23 @@ export function AgentInterface({ agentName }: { agentName: string }) {
         }}
         className="absolute bottom-0  pb-2 md:pb-4 left-1/2 transform -translate-x-1/2 w-full  z-10 backdrop-blur-sm rounded-t-3xl"
       >
+        {uiError && (
+          <div className="px-6 mb-2 w-full flex justify-center">
+            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-full text-sm shadow-sm flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
+              <span className="font-medium">Error:</span>
+              <span className="line-clamp-1">
+                {uiError.message}
+              </span>
+              <button
+                type="button"
+                onClick={() => clearHistory()}
+                className="ml-2 underline hover:text-red-800 whitespace-nowrap"
+              >
+                Clear Chat
+              </button>
+            </div>
+          </div>
+        )}
         <div className="relative">
           <textarea
             placeholder={

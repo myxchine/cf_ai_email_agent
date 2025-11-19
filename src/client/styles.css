@@ -22,6 +22,7 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   text-wrap: balance;
+  width: 100%;
 }
 
 p {
@@ -96,4 +97,8 @@ button {
 
 .chip {
   @apply inline-flex items-center gap-2 rounded-full border border-black/15 bg-black/5 px-3 py-1 text-xs uppercase tracking-wide text-black/80;
+}
+
+.email-preview table {
+  @apply w-full!;
 }
